@@ -3,16 +3,16 @@ import ta
 
 def calculate_rsi(data, period=14):
     """
-    Calculate the Relative Strength Index (RSI).
-    
-    :param data: List of price candles
-    :param period: RSI period (default: 14)
-    :return: Latest RSI value
+    Calculate RSI using Heikin Ashi close prices.
     """
-    df = pd.DataFrame(
-        data,
-        columns=["timestamp", "open", "high", "low", "close", "volume", "close_time", "ignore"]
-    )
-    df["close"] = df["close"].astype(float)  # Ensure numeric format
-    return ta.momentum.RSIIndicator(df["close"], window=period).rsi().iloc[-1]
+    try:
+        df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df = df.astype({"open": float, "high": float, "low": float, "close": float, "volume": float})
 
+        # Use Heikin Ashi close prices instead of standard close prices
+        rsi = ta.momentum.RSIIndicator(df["close"], window=period).rsi()
+        return rsi.iloc[-1]
+
+    except Exception as e:
+        print(f"❌ Error in calculate_rsi(): {e}")
+        return -1  # Return -1 on failure

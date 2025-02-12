@@ -1,64 +1,52 @@
 from trading.mexc_client import client
-from config.config import TRADE_SYMBOL, TRADE_QUANTITY, PAPER_TRADING
+from config.config import START_BALANCE
 
-# Paper trading account balance
-virtual_balance = 1000.0
-virtual_holdings = 0  # BTC held
-virtual_short_position = 0  # Short position
-entry_price = None  # Store the last trade entry price
+# Simulated trading state
+virtual_balance = START_BALANCE  # Start with configured balance
+btc_holdings = 0.0  # BTC owned
+short_position = 0.0  # Short position in BTC
+last_trade = None  # Track last executed trade (BUY or SHORT)
 
-def place_order(side, price):
-    """
-    Execute a market buy, sell, short, or cover order.
 
-    :param side: "BUY", "SELL", "SHORT", or "COVER"
-    :param price: Simulated price of execution
-    """
-    global virtual_balance, virtual_holdings, virtual_short_position, entry_price
+def place_order(order_type, price):
+    global virtual_balance, btc_holdings, short_position, last_trade
 
-    if PAPER_TRADING:
-        if side == "BUY":
-            if virtual_balance >= price * TRADE_QUANTITY:
-                virtual_balance -= price * TRADE_QUANTITY
-                virtual_holdings += TRADE_QUANTITY
-                entry_price = price
-                print(f"📊 Paper Trade: Bought {TRADE_QUANTITY} BTC at ${price:.2f}")
-            else:
-                print("⚠️ Not enough virtual balance to buy.")
-        
-        elif side == "SELL":
-            if virtual_holdings >= TRADE_QUANTITY:
-                virtual_balance += price * TRADE_QUANTITY
-                virtual_holdings -= TRADE_QUANTITY
-                print(f"📊 Paper Trade: Sold {TRADE_QUANTITY} BTC at ${price:.2f}")
-            else:
-                print("⚠️ Not enough BTC to sell.")
-        
-        elif side == "SHORT":
-            virtual_short_position += TRADE_QUANTITY
-            entry_price = price
-            print(f"📊 Paper Trade: Opened SHORT position with {TRADE_QUANTITY} BTC at ${price:.2f}")
-        
-        elif side == "COVER":
-            if virtual_short_position >= TRADE_QUANTITY:
-                virtual_balance += (entry_price - price) * TRADE_QUANTITY  # Profit calculation
-                virtual_short_position -= TRADE_QUANTITY
-                print(f"📊 Paper Trade: Covered SHORT at ${price:.2f}")
-            else:
-                print("⚠️ No short position to cover.")
-        
-        print(f"💰 Virtual Balance: ${virtual_balance:.2f} | BTC Holdings: {virtual_holdings:.4f} BTC | Short Position: {virtual_short_position}")
+    total_value = (btc_holdings + short_position) * price + virtual_balance  # Net worth
 
-    else:
-        # Execute real order via API
-        try:
-            response = client.new_order(
-                symbol=TRADE_SYMBOL, 
-                side="SELL" if side == "SHORT" else side,  # SHORT will execute as SELL in API
-                orderType="MARKET", 
-                options={"quantity": TRADE_QUANTITY}
-            )
-            print(f"✅ Real Order Executed: {response}")
-        except Exception as e:
-            print(f"❌ Error placing real order: {e}")
+    if order_type == "BUY":
+        if virtual_balance > 0 and last_trade != "BUY":  # Prevent multiple buys
+            btc_holdings = virtual_balance / price  # Buy max BTC with available balance
+            virtual_balance = 0.0  # Update balance to zero
+            last_trade = "BUY"  # Track last trade
+            print(f"🚀 BUY Order | Price: ${price:.4f} | Holdings: {btc_holdings:.4f} BTC")
+    
+    elif order_type == "SELL":
+        if btc_holdings > 0:
+            virtual_balance = btc_holdings * price  # Convert BTC back to USD
+            btc_holdings = 0.0  # Reset BTC holdings
+            last_trade = "SELL"
+            print(f"🔻 SELL Order | Price: ${price:.4f} | Balance: ${virtual_balance:.2f}")
+    
+    elif order_type == "SHORT":
+        if btc_holdings > 0:
+            place_order("SELL", price)  # Sell BTC before shorting
+
+        if virtual_balance > 0 and last_trade != "SHORT":  # Prevent multiple shorts
+            short_position = virtual_balance / price  # Open a short position
+            virtual_balance = 0.0  # Zero out balance after shorting
+            last_trade = "SHORT"
+            print(f"📉 SHORT Opened | Price: ${price:.4f} | Short Position: {short_position:.4f} BTC")
+    
+    elif order_type == "COVER":
+        if short_position > 0:
+            virtual_balance = short_position * price  # Convert short position back to USD
+            short_position = 0.0  # Reset short position
+            last_trade = "COVER"
+            print(f"📈 SHORT Closed | Price: ${price:.4f} | Balance: ${virtual_balance:.2f}")
+
+    # Print **only** trade summary (not raw data)
+    print(f"💰 Balance: ${virtual_balance:.2f} | BTC Holdings: {btc_holdings:.4f} BTC | Short: {short_position:.4f} BTC")
+    print(f"📊 Net Worth: ${total_value:.2f}")
+
+
 

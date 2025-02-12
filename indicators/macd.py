@@ -8,11 +8,9 @@ def calculate_macd(data):
     :param data: List of price candles
     :return: Latest MACD and MACD signal line values
     """
-    df = pd.DataFrame(
-        data,
-        columns=["timestamp", "open", "high", "low", "close", "volume", "close_time", "ignore"]
-    )
-    df["close"] = df["close"].astype(float)
+    df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    df = df.astype({"open": float, "high": float, "low": float, "close": float, "volume": float})  # Convert all to float
+
     macd_indicator = ta.trend.MACD(df["close"])
     return macd_indicator.macd().iloc[-1], macd_indicator.macd_signal().iloc[-1]
 

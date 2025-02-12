@@ -9,7 +9,7 @@ API_KEY = os.getenv("MEXC_API_KEY")
 API_SECRET = os.getenv("MEXC_API_SECRET")
 
 # Trading Config
-TRADE_SYMBOL = "BTCUSDT"
+TRADE_SYMBOL = "XRPUSDT"
 TRADE_QUANTITY = 0.01
 PAPER_TRADING = True  # Set to False for real trading
 
